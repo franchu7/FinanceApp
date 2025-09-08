@@ -19,20 +19,41 @@ const Index = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
   const [editingInvestment, setEditingInvestment] = useState<Investment | undefined>();
 
-  // Calculate financial summary based on real data
+  // Calculate financial summary based on current month data
   const financialSummary = useMemo((): FinancialSummary => {
-    const totalIncome = transactions
+    const currentDate = new Date();
+    const currentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    
+    // Filter transactions for current month
+    const currentMonthTransactions = transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      return transactionDate >= currentMonth;
+    });
+    
+    const totalIncome = currentMonthTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
     
-    const totalExpenses = Math.abs(transactions
+    const totalExpenses = Math.abs(currentMonthTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0));
     
+    // Total investments remain as all-time total (current value of portfolio)
     const totalInvestments = investments
       .reduce((sum, inv) => sum + (inv.quantity * inv.currentPrice), 0);
     
-    const netWorth = totalIncome - totalExpenses + totalInvestments;
+    // Calculate historical net worth (all-time income - all-time expenses + investments)
+    const allTimeIncome = transactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const allTimeExpenses = Math.abs(transactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0));
+    
+    const netWorth = allTimeIncome - allTimeExpenses + totalInvestments;
+    
+    // Net worth calculation for monthly balance: current month income - expenses + total investment value
     const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
     
     return {

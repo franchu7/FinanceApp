@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { FinancialSummary, Investment, Transaction } from "@/types/finance";
-import { ArrowDownRight, ArrowUpRight, TrendingUp, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, PiggyBank, TrendingUp, Wallet } from "lucide-react";
 
 interface FinancialMetricsProps {
   summary: FinancialSummary;
@@ -84,11 +84,51 @@ export const FinancialMetrics = ({ summary, transactions, investments }: Financi
       expenseChangeText = "Sin cambios";
     }
 
-    // For net worth, we'll use a simple calculation based on income vs expenses change
+    // For net worth, calculate actual previous month net worth vs current
+    let patrimonioNetWorthChangeText = "";
+    
+    // Calculate previous month net worth
+    const previousMonthAllIncome = transactions
+      .filter(t => t.type === 'income' && new Date(t.date) <= previousMonthEnd)
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const previousMonthAllExpenses = Math.abs(transactions
+      .filter(t => t.type === 'expense' && new Date(t.date) <= previousMonthEnd)
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0));
+    
+    // Previous month investments value (assuming same quantities but different prices)
+    const previousMonthInvestments = investments.length > 0
+      ? investments.reduce((sum, inv) => sum + (inv.quantity * inv.purchasePrice), 0) // Simplified: using purchase price as previous value
+      : 0;
+    
+    const previousNetWorth = previousMonthAllIncome - previousMonthAllExpenses + previousMonthInvestments;
+    
+    // Current net worth calculation (all time income - all time expenses + current investments value)
+    const currentAllIncome = transactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const currentAllExpenses = Math.abs(transactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0));
+    
+    const currentInvestmentsValue = investments.reduce((sum, inv) => sum + (inv.quantity * inv.currentPrice), 0);
+    const currentNetWorth = currentAllIncome - currentAllExpenses + currentInvestmentsValue;
+    
+    if (previousNetWorth > 0) {
+      const netWorthChange = ((currentNetWorth - previousNetWorth) / Math.abs(previousNetWorth)) * 100;
+      patrimonioNetWorthChangeText = formatPercentage(netWorthChange);
+    } else if (currentNetWorth !== 0) {
+      patrimonioNetWorthChangeText = "Nuevo este mes";
+    } else {
+      patrimonioNetWorthChangeText = "Sin cambios";
+    }
+
+    // For monthly balance, use simple calculation based on income vs expenses change
     let netWorthChangeText = "";
     if (previousIncome > 0 || previousExpenses > 0) {
-      const netWorthChange = incomeChange - expenseChange;
-      netWorthChangeText = formatPercentage(netWorthChange);
+      const balanceChange = incomeChange - expenseChange;
+      netWorthChangeText = formatPercentage(balanceChange);
     } else if (currentIncome > 0 || currentExpenses > 0) {
       netWorthChangeText = "Nuevo este mes";
     } else {
@@ -111,7 +151,8 @@ export const FinancialMetrics = ({ summary, transactions, investments }: Financi
       incomeChangeText,
       expenseChangeText,
       netWorthChangeText,
-      investmentChangeText
+      investmentChangeText,
+      patrimonioNetWorthChangeText
     };
   };
 
@@ -139,10 +180,11 @@ export const FinancialMetrics = ({ summary, transactions, investments }: Financi
   const expenseColors = getColorForChange(changes.expenseChangeText, true);
   const netWorthColors = getColorForChange(changes.netWorthChangeText, false, true);
   const investmentColors = getColorForChange(changes.investmentChangeText);
+  const patrimonioColors = getColorForChange(changes.patrimonioNetWorthChangeText, false, true);
 
   const metrics = [
     {
-      title: "Ingresos Totales",
+      title: "Ingresos del Mes",
       value: formatCurrency(summary.totalIncome),
       change: changes.incomeChangeText,
       icon: ArrowUpRight,
@@ -150,7 +192,7 @@ export const FinancialMetrics = ({ summary, transactions, investments }: Financi
       bgColor: incomeColors.bgColor
     },
     {
-      title: "Gastos Totales",
+      title: "Gastos del Mes",
       value: formatCurrency(summary.totalExpenses),
       change: changes.expenseChangeText,
       icon: ArrowDownRight,
@@ -158,25 +200,33 @@ export const FinancialMetrics = ({ summary, transactions, investments }: Financi
       bgColor: expenseColors.bgColor
     },
     {
-      title: "Patrimonio Neto",
-      value: formatCurrency(summary.netWorth),
+      title: "Balance del Mes",
+      value: formatCurrency(summary.totalIncome - summary.totalExpenses),
       change: changes.netWorthChangeText,
       icon: Wallet,
       color: netWorthColors.color,
       bgColor: netWorthColors.bgColor
     },
     {
-      title: "Inversiones",
+      title: "Inversiones Totales",
       value: formatCurrency(summary.totalInvestments),
       change: changes.investmentChangeText,
       icon: TrendingUp,
       color: investmentColors.color,
       bgColor: investmentColors.bgColor
+    },
+    {
+      title: "Patrimonio Neto",
+      value: formatCurrency(summary.netWorth),
+      change: changes.netWorthChangeText,
+      icon: PiggyBank,
+      color: patrimonioColors.color,
+      bgColor: patrimonioColors.bgColor
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
       {metrics.map((metric) => {
         const Icon = metric.icon;
         return (
