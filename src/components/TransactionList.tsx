@@ -1,17 +1,32 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TransactionFilter } from "@/components/TransactionFilter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownRight, Plus, Filter, Edit, Trash2 } from "lucide-react";
-import type { Transaction } from "@/types/finance";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Transaction, TransactionFilters } from "@/types/finance";
+import { ArrowDownRight, ArrowUpRight, Edit, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 interface TransactionListProps {
   transactions: Transaction[];
   onAddTransaction: () => void;
   onEditTransaction: (transaction: Transaction) => void;
   onDeleteTransaction: (id: string) => void;
+  filters?: TransactionFilters;
+  onFiltersChange?: (filters: TransactionFilters) => void;
+  availableCategories?: string[];
 }
 
-export const TransactionList = ({ transactions, onAddTransaction, onEditTransaction, onDeleteTransaction }: TransactionListProps) => {
+export const TransactionList = ({ 
+  transactions, 
+  onAddTransaction, 
+  onEditTransaction, 
+  onDeleteTransaction,
+  filters,
+  onFiltersChange,
+  availableCategories
+}: TransactionListProps) => {
+  const [filterOpen, setFilterOpen] = useState(false);
+  
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
@@ -41,23 +56,44 @@ export const TransactionList = ({ transactions, onAddTransaction, onEditTransact
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg font-semibold">Transacciones Recientes</CardTitle>
-        <div className="flex space-x-2">
-          <Button variant="outline" size="sm">
-            <Filter className="w-4 h-4 mr-2" />
-            Filtrar
-          </Button>
-          <Button size="sm" className="bg-gradient-to-r from-primary to-primary-light hover:from-primary-dark hover:to-primary" onClick={onAddTransaction}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nueva
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {transactions.map((transaction) => (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg font-semibold">
+            Transacciones 
+            {transactions.length > 0 && (
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                ({transactions.length} {transactions.length === 1 ? 'transacción' : 'transacciones'})
+              </span>
+            )}
+          </CardTitle>
+          <div className="flex space-x-2">
+            {filters && onFiltersChange && availableCategories && (
+              <TransactionFilter
+                filters={filters}
+                onFiltersChange={onFiltersChange}
+                availableCategories={availableCategories}
+                isOpen={filterOpen}
+                onToggle={() => setFilterOpen(!filterOpen)}
+              />
+            )}
+            <Button size="sm" className="bg-gradient-to-r from-primary to-primary-light hover:from-primary-dark hover:to-primary" onClick={onAddTransaction}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nueva
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {transactions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No se encontraron transacciones</p>
+              {filters && (filters.type !== 'all' || filters.category || filters.searchText) && (
+                <p className="text-sm mt-2">Prueba a ajustar los filtros para ver más resultados</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {transactions.map((transaction) => (
             <div
               key={transaction.id}
               className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors duration-200"
@@ -118,8 +154,10 @@ export const TransactionList = ({ transactions, onAddTransaction, onEditTransact
               </div>
             </div>
           ))}
-        </div>
-      </CardContent>
-    </Card>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };

@@ -8,6 +8,16 @@ export interface Transaction {
   tags?: string[];
 }
 
+export interface TransactionFilters {
+  type: 'all' | 'income' | 'expense';
+  category: string;
+  dateFrom: string;
+  dateTo: string;
+  amountMin: number | null;
+  amountMax: number | null;
+  searchText: string;
+}
+
 export interface Investment {
   id: string;
   name: string;

@@ -5,19 +5,78 @@ import { InvestmentOverview } from "@/components/InvestmentOverview";
 import { Navigation } from "@/components/Navigation";
 import { TransactionForm } from "@/components/TransactionForm";
 import { TransactionList } from "@/components/TransactionList";
-import type { FinancialSummary, Investment, Transaction } from "@/types/finance";
+import { sampleInvestments, sampleTransactions } from "@/data/sampleData";
+import type { FinancialSummary, Investment, Transaction, TransactionFilters } from "@/types/finance";
 import { useMemo, useState } from "react";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [investments, setInvestments] = useState<Investment[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>(sampleTransactions);
+  const [investments, setInvestments] = useState<Investment[]>(sampleInvestments);
+  
+  // Filter state
+  const [filters, setFilters] = useState<TransactionFilters>({
+    type: 'all',
+    category: '',
+    dateFrom: '',
+    dateTo: '',
+    amountMin: null,
+    amountMax: null,
+    searchText: ''
+  });
   
   // Form state
   const [transactionFormOpen, setTransactionFormOpen] = useState(false);
   const [investmentFormOpen, setInvestmentFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
   const [editingInvestment, setEditingInvestment] = useState<Investment | undefined>();
+
+  // Filter transactions based on current filters
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => {
+      // Type filter
+      if (filters.type !== 'all' && transaction.type !== filters.type) {
+        return false;
+      }
+      
+      // Category filter
+      if (filters.category && transaction.category !== filters.category) {
+        return false;
+      }
+      
+      // Date range filter
+      if (filters.dateFrom && new Date(transaction.date) < new Date(filters.dateFrom)) {
+        return false;
+      }
+      
+      if (filters.dateTo && new Date(transaction.date) > new Date(filters.dateTo)) {
+        return false;
+      }
+      
+      // Amount range filter
+      const absAmount = Math.abs(transaction.amount);
+      if (filters.amountMin !== null && absAmount < filters.amountMin) {
+        return false;
+      }
+      
+      if (filters.amountMax !== null && absAmount > filters.amountMax) {
+        return false;
+      }
+      
+      // Search text filter
+      if (filters.searchText && !transaction.description.toLowerCase().includes(filters.searchText.toLowerCase())) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [transactions, filters]);
+
+  // Get unique categories for filter dropdown
+  const availableCategories = useMemo(() => {
+    const categories = [...new Set(transactions.map(t => t.category))];
+    return categories.sort((a, b) => a.localeCompare(b));
+  }, [transactions]);
 
   // Calculate financial summary based on current month data
   const financialSummary = useMemo((): FinancialSummary => {
@@ -173,10 +232,13 @@ const Index = () => {
               <p className="text-muted-foreground">Gestiona todos tus ingresos y gastos</p>
             </div>
             <TransactionList 
-              transactions={transactions} 
+              transactions={filteredTransactions} 
               onAddTransaction={handleAddTransaction}
               onEditTransaction={handleEditTransaction}
               onDeleteTransaction={handleDeleteTransaction}
+              filters={filters}
+              onFiltersChange={setFilters}
+              availableCategories={availableCategories}
             />
           </div>
         );
