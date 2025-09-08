@@ -160,7 +160,6 @@ export const FinancialMetrics = ({ summary, transactions }: FinancialMetricsProp
     {
       title: 'Patrimonio Neto',
       value: formatCurrency(summary.netWorth),
-      change: changes.netWorthChangeText,
       icon: PiggyBank,
       color: networthColors.color,
       bgColor: networthColors.bgColor,

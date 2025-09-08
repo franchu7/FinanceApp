@@ -3,13 +3,12 @@ import { FinancialMetrics } from '@/components/FinancialMetrics'
 import { Navigation } from '@/components/Navigation'
 import { TransactionForm } from '@/components/TransactionForm'
 import { TransactionList } from '@/components/TransactionList'
-import { sampleTransactions } from '@/data/sampleData'
 import type { FinancialSummary, Transaction, TransactionFilters } from '@/types/finance'
 import { useMemo, useState } from 'react'
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [transactions, setTransactions] = useState<Transaction[]>(sampleTransactions)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
 
   // Filter state
   const [filters, setFilters] = useState<TransactionFilters>({
