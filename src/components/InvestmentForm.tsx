@@ -1,10 +1,11 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 import type { Investment } from "@/types/finance";
+import { useEffect, useState } from "react";
 
 interface InvestmentFormProps {
   open: boolean;
@@ -14,15 +15,45 @@ interface InvestmentFormProps {
 }
 
 export const InvestmentForm = ({ open, onClose, onSubmit, investment }: InvestmentFormProps) => {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
-    name: investment?.name || '',
-    type: investment?.type || 'stocks' as Investment['type'],
-    amount: investment?.amount.toString() || '',
-    purchasePrice: investment?.purchasePrice.toString() || '',
-    currentPrice: investment?.currentPrice.toString() || '',
-    quantity: investment?.quantity.toString() || '',
-    date: investment?.date || new Date().toISOString().split('T')[0]
+    name: '',
+    type: 'stocks' as Investment['type'],
+    amount: '',
+    purchasePrice: '',
+    currentPrice: '',
+    quantity: '',
+    date: new Date().toISOString().split('T')[0]
   });
+
+  // Get today's date in YYYY-MM-DD format for max date validation
+  const today = new Date().toISOString().split('T')[0];
+
+  // Update form data when investment prop changes
+  useEffect(() => {
+    if (investment) {
+      setFormData({
+        name: investment.name,
+        type: investment.type,
+        amount: investment.amount.toString(),
+        purchasePrice: investment.purchasePrice.toString(),
+        currentPrice: investment.currentPrice.toString(),
+        quantity: investment.quantity.toString(),
+        date: investment.date
+      });
+    } else {
+      // Reset form for new investment
+      setFormData({
+        name: '',
+        type: 'stocks',
+        amount: '',
+        purchasePrice: '',
+        currentPrice: '',
+        quantity: '',
+        date: new Date().toISOString().split('T')[0]
+      });
+    }
+  }, [investment]);
 
   const investmentTypes: { value: Investment['type']; label: string }[] = [
     { value: 'stocks', label: 'Acciones' },
@@ -36,6 +67,18 @@ export const InvestmentForm = ({ open, onClose, onSubmit, investment }: Investme
     e.preventDefault();
     if (!formData.name || !formData.type || !formData.amount || !formData.purchasePrice || !formData.currentPrice || !formData.quantity) return;
 
+    // Validate that the date is not in the future
+    const selectedDate = new Date(formData.date);
+    const todayDate = new Date(today);
+    if (selectedDate > todayDate) {
+      toast({
+        title: "Fecha no válida",
+        description: "No puedes seleccionar una fecha futura para la compra.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     onSubmit({
       name: formData.name,
       type: formData.type,
@@ -46,16 +89,6 @@ export const InvestmentForm = ({ open, onClose, onSubmit, investment }: Investme
       date: formData.date
     });
 
-    // Reset form
-    setFormData({
-      name: '',
-      type: 'stocks',
-      amount: '',
-      purchasePrice: '',
-      currentPrice: '',
-      quantity: '',
-      date: new Date().toISOString().split('T')[0]
-    });
     onClose();
   };
 
@@ -153,6 +186,7 @@ export const InvestmentForm = ({ open, onClose, onSubmit, investment }: Investme
               id="date"
               type="date"
               value={formData.date}
+              max={today}
               onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
               required
             />

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Home, Receipt, TrendingUp, Target, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 

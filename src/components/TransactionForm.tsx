@@ -1,11 +1,12 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import type { Transaction } from "@/types/finance";
+import { useEffect, useState } from "react";
 
 interface TransactionFormProps {
   open: boolean;
@@ -15,13 +16,39 @@ interface TransactionFormProps {
 }
 
 export const TransactionForm = ({ open, onClose, onSubmit, transaction }: TransactionFormProps) => {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
-    amount: transaction?.amount.toString() || '',
-    type: transaction?.type || 'expense' as 'income' | 'expense',
-    category: transaction?.category || '',
-    description: transaction?.description || '',
-    date: transaction?.date || new Date().toISOString().split('T')[0]
+    amount: '',
+    type: 'expense' as 'income' | 'expense',
+    category: '',
+    description: '',
+    date: new Date().toISOString().split('T')[0]
   });
+
+  // Get today's date in YYYY-MM-DD format for max date validation
+  const today = new Date().toISOString().split('T')[0];
+
+  // Update form data when transaction prop changes
+  useEffect(() => {
+    if (transaction) {
+      setFormData({
+        amount: Math.abs(transaction.amount).toString(), // Always show positive amount in form
+        type: transaction.type,
+        category: transaction.category,
+        description: transaction.description,
+        date: transaction.date
+      });
+    } else {
+      // Reset form for new transaction
+      setFormData({
+        amount: '',
+        type: 'expense',
+        category: '',
+        description: '',
+        date: new Date().toISOString().split('T')[0]
+      });
+    }
+  }, [transaction]);
 
   const categories = {
     expense: ['vivienda', 'transporte', 'ocio', 'alimentación', 'otros'],
@@ -32,6 +59,18 @@ export const TransactionForm = ({ open, onClose, onSubmit, transaction }: Transa
     e.preventDefault();
     if (!formData.amount || !formData.category || !formData.description) return;
 
+    // Validate that the date is not in the future
+    const selectedDate = new Date(formData.date);
+    const todayDate = new Date(today);
+    if (selectedDate > todayDate) {
+      toast({
+        title: "Fecha no válida",
+        description: "No puedes seleccionar una fecha futura.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     onSubmit({
       amount: parseFloat(formData.amount),
       type: formData.type,
@@ -40,14 +79,6 @@ export const TransactionForm = ({ open, onClose, onSubmit, transaction }: Transa
       date: formData.date
     });
 
-    // Reset form
-    setFormData({
-      amount: '',
-      type: 'expense',
-      category: '',
-      description: '',
-      date: new Date().toISOString().split('T')[0]
-    });
     onClose();
   };
 
@@ -128,6 +159,7 @@ export const TransactionForm = ({ open, onClose, onSubmit, transaction }: Transa
               id="date"
               type="date"
               value={formData.date}
+              max={today}
               onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
               required
             />

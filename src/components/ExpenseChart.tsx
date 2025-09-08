@@ -1,24 +1,70 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import type { Transaction } from "@/types/finance";
+import { useMemo } from 'react';
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
-const expenseData = [
-  { name: 'Vivienda', value: 1200, color: '#3B82F6' },
-  { name: 'Alimentación', value: 400, color: '#10B981' },
-  { name: 'Transporte', value: 300, color: '#F59E0B' },
-  { name: 'Ocio', value: 250, color: '#8B5CF6' },
-  { name: 'Otros', value: 180, color: '#6B7280' },
-];
+interface ExpenseChartProps {
+  transactions: Transaction[];
+}
 
-const monthlyData = [
-  { month: 'Ene', ingresos: 3500, gastos: 2330 },
-  { month: 'Feb', ingresos: 3200, gastos: 2100 },
-  { month: 'Mar', ingresos: 3800, gastos: 2800 },
-  { month: 'Abr', ingresos: 3600, gastos: 2400 },
-  { month: 'May', ingresos: 4000, gastos: 2600 },
-  { month: 'Jun', ingresos: 3900, gastos: 2500 },
-];
+export const ExpenseChart = ({ transactions }: ExpenseChartProps) => {
+  const expenseData = useMemo(() => {
+    const expensesByCategory = transactions
+      .filter(t => t.type === 'expense')
+      .reduce((acc, transaction) => {
+        const category = transaction.category;
+        const amount = Math.abs(transaction.amount);
+        acc[category] = (acc[category] || 0) + amount;
+        return acc;
+      }, {} as Record<string, number>);
 
-export const ExpenseChart = () => {
+    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#6B7280', '#EF4444', '#14B8A6'];
+    
+    return Object.entries(expensesByCategory).map(([name, value], index) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value,
+      color: colors[index % colors.length]
+    }));
+  }, [transactions]);
+
+  const monthlyData = useMemo(() => {
+    // Group transactions by month
+    const monthlyGroups = transactions.reduce((acc, transaction) => {
+      const date = new Date(transaction.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthName = date.toLocaleDateString('es-ES', { 
+        month: 'short',
+        year: date.getFullYear() !== new Date().getFullYear() ? '2-digit' : undefined 
+      });
+      
+      if (!acc[monthKey]) {
+        acc[monthKey] = {
+          month: monthName,
+          ingresos: 0,
+          gastos: 0,
+          sortKey: monthKey
+        };
+      }
+      
+      if (transaction.type === 'income') {
+        acc[monthKey].ingresos += transaction.amount;
+      } else {
+        acc[monthKey].gastos += Math.abs(transaction.amount);
+      }
+      
+      return acc;
+    }, {} as Record<string, { month: string; ingresos: number; gastos: number; sortKey: string }>);
+
+    // Convert to array and sort by date, then take last 6 months
+    return Object.values(monthlyGroups)
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+      .slice(-6)
+      .map((item) => ({
+        month: item.month,
+        ingresos: item.ingresos,
+        gastos: item.gastos
+      }));
+  }, [transactions]);
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card>

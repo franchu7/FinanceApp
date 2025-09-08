@@ -1,124 +1,49 @@
-import { useState } from "react";
-import { Navigation } from "@/components/Navigation";
-import { FinancialMetrics } from "@/components/FinancialMetrics";
-import { TransactionList } from "@/components/TransactionList";
 import { ExpenseChart } from "@/components/ExpenseChart";
-import { InvestmentOverview } from "@/components/InvestmentOverview";
-import { TransactionForm } from "@/components/TransactionForm";
+import { FinancialMetrics } from "@/components/FinancialMetrics";
 import { InvestmentForm } from "@/components/InvestmentForm";
-import type { Transaction, Investment, FinancialSummary } from "@/types/finance";
-
-// Mock data
-const mockSummary: FinancialSummary = {
-  totalIncome: 3800,
-  totalExpenses: 2450,
-  netWorth: 45600,
-  totalInvestments: 18750,
-  savingsRate: 35.5,
-  monthlyChange: 2.8
-};
-
-const mockTransactions: Transaction[] = [
-  {
-    id: '1',
-    amount: 3500,
-    type: 'income',
-    category: 'Salario',
-    description: 'Salario mensual',
-    date: '2024-01-15',
-    tags: ['trabajo']
-  },
-  {
-    id: '2',
-    amount: -1200,
-    type: 'expense',
-    category: 'Vivienda',
-    description: 'Alquiler apartamento',
-    date: '2024-01-01',
-    tags: ['fijo']
-  },
-  {
-    id: '3',
-    amount: -85,
-    type: 'expense',
-    category: 'Alimentación',
-    description: 'Compra supermercado',
-    date: '2024-01-14',
-    tags: ['mercadona']
-  },
-  {
-    id: '4',
-    amount: -45,
-    type: 'expense',
-    category: 'Transporte',
-    description: 'Gasolina',
-    date: '2024-01-13',
-    tags: ['combustible']
-  },
-  {
-    id: '5',
-    amount: 250,
-    type: 'income',
-    category: 'Otros',
-    description: 'Venta artículos usados',
-    date: '2024-01-12',
-    tags: ['extra']
-  }
-];
-
-const mockInvestments: Investment[] = [
-  {
-    id: '1',
-    name: 'VWCE - Vanguard FTSE All-World',
-    type: 'etf',
-    amount: 5000,
-    purchasePrice: 95.5,
-    currentPrice: 102.3,
-    quantity: 52.36,
-    date: '2023-08-15'
-  },
-  {
-    id: '2',
-    name: 'Apple Inc. (AAPL)',
-    type: 'stocks',
-    amount: 3000,
-    purchasePrice: 150.25,
-    currentPrice: 185.64,
-    quantity: 19.97,
-    date: '2023-09-20'
-  },
-  {
-    id: '3',
-    name: 'Bitcoin',
-    type: 'crypto',
-    amount: 2500,
-    purchasePrice: 42000,
-    currentPrice: 51200,
-    quantity: 0.0595,
-    date: '2023-10-10'
-  },
-  {
-    id: '4',
-    name: 'Oro físico',
-    type: 'gold',
-    amount: 1000,
-    purchasePrice: 58.5,
-    currentPrice: 61.2,
-    quantity: 17.09,
-    date: '2023-11-05'
-  }
-];
+import { InvestmentOverview } from "@/components/InvestmentOverview";
+import { Navigation } from "@/components/Navigation";
+import { TransactionForm } from "@/components/TransactionForm";
+import { TransactionList } from "@/components/TransactionList";
+import type { FinancialSummary, Investment, Transaction } from "@/types/finance";
+import { useMemo, useState } from "react";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
-  const [investments, setInvestments] = useState<Investment[]>(mockInvestments);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
   
   // Form state
   const [transactionFormOpen, setTransactionFormOpen] = useState(false);
   const [investmentFormOpen, setInvestmentFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
   const [editingInvestment, setEditingInvestment] = useState<Investment | undefined>();
+
+  // Calculate financial summary based on real data
+  const financialSummary = useMemo((): FinancialSummary => {
+    const totalIncome = transactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const totalExpenses = Math.abs(transactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0));
+    
+    const totalInvestments = investments
+      .reduce((sum, inv) => sum + (inv.quantity * inv.currentPrice), 0);
+    
+    const netWorth = totalIncome - totalExpenses + totalInvestments;
+    const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
+    
+    return {
+      totalIncome,
+      totalExpenses,
+      netWorth,
+      totalInvestments,
+      savingsRate,
+      monthlyChange: 0 // This is now calculated in FinancialMetrics component
+    };
+  }, [transactions, investments]);
 
   // Transaction CRUD operations
   const handleAddTransaction = () => {
@@ -136,17 +61,27 @@ const Index = () => {
   };
 
   const handleTransactionSubmit = (transactionData: Omit<Transaction, 'id'>) => {
+    // Ensure expenses are negative and incomes are positive
+    const amount = transactionData.type === 'expense' 
+      ? -Math.abs(transactionData.amount)
+      : Math.abs(transactionData.amount);
+    
+    const processedTransaction = {
+      ...transactionData,
+      amount
+    };
+
     if (editingTransaction) {
       // Update existing transaction
       setTransactions(prev => prev.map(t => 
         t.id === editingTransaction.id 
-          ? { ...transactionData, id: editingTransaction.id }
+          ? { ...processedTransaction, id: editingTransaction.id }
           : t
       ));
     } else {
       // Add new transaction
       const newTransaction: Transaction = {
-        ...transactionData,
+        ...processedTransaction,
         id: Date.now().toString()
       };
       setTransactions(prev => [newTransaction, ...prev]);
@@ -195,8 +130,12 @@ const Index = () => {
               <h2 className="text-3xl font-bold text-foreground mb-2">Dashboard Financiero</h2>
               <p className="text-muted-foreground">Resumen completo de tu situación financiera</p>
             </div>
-            <FinancialMetrics summary={mockSummary} />
-            <ExpenseChart />
+            <FinancialMetrics 
+              summary={financialSummary} 
+              transactions={transactions}
+              investments={investments}
+            />
+            <ExpenseChart transactions={transactions} />
             <TransactionList 
               transactions={transactions.slice(0, 5)} 
               onAddTransaction={handleAddTransaction}
