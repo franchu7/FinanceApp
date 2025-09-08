@@ -53,7 +53,7 @@ export const FinancialMetrics = ({ summary, transactions }: FinancialMetricsProp
     let incomeChangeText = ''
     if (previousIncome > 0) {
       incomeChange = ((currentIncome - previousIncome) / previousIncome) * 100
-      incomeChangeText = formatPercentage(incomeChange)
+      incomeChangeText = `${formatPercentage(incomeChange)} desde el mes pasado`
     } else if (currentIncome > 0) {
       incomeChangeText = 'Nuevo este mes'
     } else {
@@ -64,14 +64,12 @@ export const FinancialMetrics = ({ summary, transactions }: FinancialMetricsProp
     let expenseChangeText = ''
     if (previousExpenses > 0) {
       expenseChange = ((currentExpenses - previousExpenses) / previousExpenses) * 100
-      expenseChangeText = formatPercentage(expenseChange) // Show actual change percentage
+      expenseChangeText = `${formatPercentage(expenseChange)} desde el mes pasado`
     } else if (currentExpenses > 0) {
       expenseChangeText = 'Nuevo este mes'
     } else {
       expenseChangeText = 'Sin cambios'
     }
-
-    const netWorthChangeText = ''
 
     // For monthly balance, calculate actual balance change
     let balanceChangeText = ''
@@ -80,11 +78,24 @@ export const FinancialMetrics = ({ summary, transactions }: FinancialMetricsProp
 
     if (previousBalance !== 0) {
       const balanceChange = ((currentBalance - previousBalance) / Math.abs(previousBalance)) * 100
-      balanceChangeText = formatPercentage(balanceChange)
+      balanceChangeText = `${formatPercentage(balanceChange)} desde el mes pasado`
     } else if (currentBalance !== 0) {
       balanceChangeText = 'Nuevo este mes'
     } else {
       balanceChangeText = 'Sin cambios'
+    }
+
+    let netWorthChangeText = ''
+    const currentNetWorth = summary.netWorth
+    const previousNetWorth = previousIncome - previousExpenses
+
+    if (previousNetWorth !== 0) {
+      const netWorthChange = ((currentNetWorth - previousNetWorth) / Math.abs(previousNetWorth)) * 100
+      netWorthChangeText = `${formatPercentage(netWorthChange)} desde el mes pasado`
+    } else if (currentNetWorth !== 0) {
+      netWorthChangeText = 'Nuevo este mes'
+    } else {
+      netWorthChangeText = 'Sin cambios'
     }
 
     return {
@@ -157,7 +168,7 @@ export const FinancialMetrics = ({ summary, transactions }: FinancialMetricsProp
   ]
 
   return (
-    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6'>
+    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
       {metrics.map((metric) => {
         const Icon = metric.icon
         return (
@@ -170,7 +181,7 @@ export const FinancialMetrics = ({ summary, transactions }: FinancialMetricsProp
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold text-foreground mb-1'>{metric.value}</div>
-              <p className={`text-xs ${metric.color} font-medium`}>{metric.change} desde el mes pasado</p>
+              <p className={`text-xs ${metric.color} font-medium`}>{metric.change}</p>
             </CardContent>
           </Card>
         )
