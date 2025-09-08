@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 const navigationItems = [
   { id: 'dashboard', label: 'Dashboard', icon: Home },
   { id: 'transactions', label: 'Transacciones', icon: Receipt },
-  { id: 'investments', label: 'Inversiones', icon: TrendingUp },
   { id: 'budgets', label: 'Presupuestos', icon: Target },
   { id: 'settings', label: 'Configuración', icon: Settings },
 ];

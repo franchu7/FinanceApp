@@ -1,14 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { FinancialSummary, Investment, Transaction } from '@/types/finance'
-import { ArrowDownRight, ArrowUpRight, PiggyBank, TrendingUp, Wallet } from 'lucide-react'
+import type { FinancialSummary, Transaction } from '@/types/finance'
+import { ArrowDownRight, ArrowUpRight, PiggyBank, Wallet } from 'lucide-react'
 
 interface FinancialMetricsProps {
   summary: FinancialSummary
   transactions: Transaction[]
-  investments: Investment[]
 }
 
-export const FinancialMetrics = ({ summary, transactions, investments }: FinancialMetricsProps) => {
+export const FinancialMetrics = ({ summary, transactions }: FinancialMetricsProps) => {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
@@ -65,79 +64,33 @@ export const FinancialMetrics = ({ summary, transactions, investments }: Financi
     let expenseChangeText = ''
     if (previousExpenses > 0) {
       expenseChange = ((currentExpenses - previousExpenses) / previousExpenses) * 100
-      expenseChangeText = formatPercentage(-expenseChange) // Negative because decrease is good
+      expenseChangeText = formatPercentage(expenseChange) // Show actual change percentage
     } else if (currentExpenses > 0) {
       expenseChangeText = 'Nuevo este mes'
     } else {
       expenseChangeText = 'Sin cambios'
     }
 
-    // For net worth, calculate actual previous month net worth vs current
-    let netWorthChangeText = ''
+    const netWorthChangeText = ''
 
-    // Calculate previous month net worth
-    const previousMonthAllIncome = transactions
-      .filter((t) => t.type === 'income' && new Date(t.date) <= previousMonthEnd)
-      .reduce((sum, t) => sum + t.amount, 0)
-
-    const previousMonthAllExpenses = Math.abs(
-      transactions.filter((t) => t.type === 'expense' && new Date(t.date) <= previousMonthEnd).reduce((sum, t) => sum + Math.abs(t.amount), 0)
-    )
-
-    // Previous month investments value (assuming same quantities but different prices)
-    const previousMonthInvestments =
-      investments.length > 0
-        ? investments.reduce((sum, inv) => sum + inv.quantity * inv.purchasePrice, 0) // Simplified: using purchase price as previous value
-        : 0
-
-    const previousNetWorth = previousMonthAllIncome - previousMonthAllExpenses + previousMonthInvestments
-
-    // Current net worth calculation (all time income - all time expenses + current investments value)
-    const currentAllIncome = transactions.filter((t) => t.type === 'income').reduce((sum, t) => sum + t.amount, 0)
-
-    const currentAllExpenses = Math.abs(transactions.filter((t) => t.type === 'expense').reduce((sum, t) => sum + Math.abs(t.amount), 0))
-
-    const currentInvestmentsValue = investments.reduce((sum, inv) => sum + inv.quantity * inv.currentPrice, 0)
-    const currentNetWorth = currentAllIncome - currentAllExpenses + currentInvestmentsValue
-
-    if (previousNetWorth > 0) {
-      const netWorthChange = ((currentNetWorth - previousNetWorth) / Math.abs(previousNetWorth)) * 100
-      netWorthChangeText = formatPercentage(netWorthChange)
-    } else if (currentNetWorth !== 0) {
-      netWorthChangeText = 'Nuevo este mes'
-    } else {
-      netWorthChangeText = 'Sin cambios'
-    }
-
-    // For monthly balance, use simple calculation based on income vs expenses change
+    // For monthly balance, calculate actual balance change
     let balanceChangeText = ''
-    if (previousIncome > 0 || previousExpenses > 0) {
-      const balanceChange = incomeChange - expenseChange
+    const currentBalance = currentIncome - currentExpenses
+    const previousBalance = previousIncome - previousExpenses
+
+    if (previousBalance !== 0) {
+      const balanceChange = ((currentBalance - previousBalance) / Math.abs(previousBalance)) * 100
       balanceChangeText = formatPercentage(balanceChange)
-    } else if (currentIncome > 0 || currentExpenses > 0) {
+    } else if (currentBalance !== 0) {
       balanceChangeText = 'Nuevo este mes'
     } else {
       balanceChangeText = 'Sin cambios'
-    }
-
-    // For investments, calculate based on current vs purchase price average
-    let investmentChangeText = ''
-    if (investments.length > 0) {
-      const investmentChange =
-        investments.reduce((avg, inv) => {
-          const change = ((inv.currentPrice - inv.purchasePrice) / inv.purchasePrice) * 100
-          return avg + change
-        }, 0) / investments.length
-      investmentChangeText = formatPercentage(investmentChange)
-    } else {
-      investmentChangeText = 'Sin inversiones'
     }
 
     return {
       incomeChangeText,
       expenseChangeText,
       balanceChangeText,
-      investmentChangeText,
       netWorthChangeText,
     }
   }
@@ -146,13 +99,18 @@ export const FinancialMetrics = ({ summary, transactions, investments }: Financi
 
   // Helper function to determine colors based on change text
   const getColorForChange = (changeText: string, isExpense = false, useCustomPositive = false) => {
+    if (changeText.includes('insuficientes')) {
+      return { color: 'text-muted-foreground', bgColor: 'bg-muted/10' }
+    }
     if (changeText.includes('-')) {
+      // For expenses: decrease (negative) is good (green), for others: decrease is bad (red)
       return isExpense ? { color: 'text-success', bgColor: 'bg-success/10' } : { color: 'text-destructive', bgColor: 'bg-destructive/10' }
     } else if (changeText.includes('+')) {
       if (useCustomPositive) {
         return { color: 'text-primary', bgColor: 'bg-primary/10' }
       }
-      return isExpense ? { color: 'text-warning', bgColor: 'bg-warning/10' } : { color: 'text-success', bgColor: 'bg-success/10' }
+      // For expenses: increase (positive) is bad (red), for others: increase is good (green)
+      return isExpense ? { color: 'text-destructive', bgColor: 'bg-destructive/10' } : { color: 'text-success', bgColor: 'bg-success/10' }
     } else {
       return { color: 'text-muted-foreground', bgColor: 'bg-muted/10' }
     }
@@ -161,7 +119,6 @@ export const FinancialMetrics = ({ summary, transactions, investments }: Financi
   const incomeColors = getColorForChange(changes.incomeChangeText)
   const expenseColors = getColorForChange(changes.expenseChangeText, true)
   const balanceColors = getColorForChange(changes.balanceChangeText, false, true)
-  const investmentColors = getColorForChange(changes.investmentChangeText)
   const networthColors = getColorForChange(changes.netWorthChangeText, false, true)
 
   const metrics = [
@@ -188,14 +145,6 @@ export const FinancialMetrics = ({ summary, transactions, investments }: Financi
       icon: Wallet,
       color: balanceColors.color,
       bgColor: balanceColors.bgColor,
-    },
-    {
-      title: 'Inversiones Totales',
-      value: formatCurrency(summary.totalInvestments),
-      change: changes.investmentChangeText,
-      icon: TrendingUp,
-      color: investmentColors.color,
-      bgColor: investmentColors.bgColor,
     },
     {
       title: 'Patrimonio Neto',
